@@ -58,10 +58,15 @@ typedef struct pnode {
   struct pnode *next;
 } pnode_t;
 
+esp_err_t nvs_init(void);
+void nvs_get_or_default(filterParams_t *params);
+void nvs_save(filterParams_t params);
+
 void dsp_processor_init(void);
 void dsp_processor_uninit(void);
 int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate);
 esp_err_t dsp_processor_update_filter_params(filterParams_t *params);
+void dsp_processor_log_filter(filterParams_t filterParams);
 void dsp_processor_set_volome(double volume);
 
 #endif /* _DSP_PROCESSOR_H_  */

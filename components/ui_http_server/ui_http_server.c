@@ -248,6 +248,39 @@ static esp_err_t root_post_handler(httpd_req_t *req) {
     ESP_LOGD(TAG, "key 'gain_3=' not found");
   }
 
+  if (find_key_value("fc_1=", (char *)req->uri, urlBuf.str_value)) {
+    ESP_LOGD(TAG, "urlBuf.str_value=[%s]", urlBuf.str_value);
+
+    urlBuf.fc_1 = strtof(urlBuf.str_value, NULL);
+    ESP_LOGD(TAG, "urlBuf.float_value=%f", urlBuf.fc_1);
+
+    ret = 0;
+  } else {
+    ESP_LOGD(TAG, "key 'fc_1=' not found");
+  }
+
+  if (find_key_value("fc_2=", (char *)req->uri, urlBuf.str_value)) {
+    ESP_LOGD(TAG, "urlBuf.str_value=[%s]", urlBuf.str_value);
+
+    urlBuf.fc_2 = strtof(urlBuf.str_value, NULL);
+    ESP_LOGD(TAG, "urlBuf.float_value=%f", urlBuf.fc_2);
+
+    ret = 0;
+  } else {
+    ESP_LOGD(TAG, "key 'fc_2=' not found");
+  }
+
+  if (find_key_value("fc_3=", (char *)req->uri, urlBuf.str_value)) {
+    ESP_LOGD(TAG, "urlBuf.str_value=[%s]", urlBuf.str_value);
+
+    urlBuf.fc_3 = strtof(urlBuf.str_value, NULL);
+    ESP_LOGD(TAG, "urlBuf.float_value=%f", urlBuf.fc_3);
+
+    ret = 0;
+  } else {
+    ESP_LOGD(TAG, "key 'fc_3=' not found");
+  }
+
   if (ret >= 0) {
     // Send to http_server_task
     if (xQueueSend(xQueueHttp, &urlBuf, portMAX_DELAY) != pdPASS) {
@@ -318,16 +351,16 @@ esp_err_t start_server(const char *base_path, int port) {
 }
 
 //// LEDC Stuff
-//#define LEDC_TIMER			LEDC_TIMER_0
-//#define LEDC_MODE			LEDC_LOW_SPEED_MODE
+// #define LEDC_TIMER			LEDC_TIMER_0
+// #define LEDC_MODE			LEDC_LOW_SPEED_MODE
 ////#define LEDC_OUTPUT_IO	(5) // Define the output GPIO
-//#define LEDC_OUTPUT_IO		CONFIG_BLINK_GPIO // Define the output
-// GPIO #define LEDC_CHANNEL		LEDC_CHANNEL_0 #define LEDC_DUTY_RES
-// LEDC_TIMER_13_BIT // Set duty resolution to 13 bits #define LEDC_DUTY
+// #define LEDC_OUTPUT_IO		CONFIG_BLINK_GPIO // Define the output
+//  GPIO #define LEDC_CHANNEL		LEDC_CHANNEL_0 #define LEDC_DUTY_RES
+//  LEDC_TIMER_13_BIT // Set duty resolution to 13 bits #define LEDC_DUTY
 //(4095) // Set duty to 50%. ((2 ** 13) - 1) * 50% = 4095 #define LEDC_FREQUENCY
 //(5000) // Frequency in Hertz. Set frequency at 5 kHz
 //
-// static void ledc_init(void)
+//  static void ledc_init(void)
 //{
 //	// Prepare and then apply the LEDC PWM timer configuration
 //	ledc_timer_config_t ledc_timer = {
@@ -335,7 +368,7 @@ esp_err_t start_server(const char *base_path, int port) {
 //		.timer_num			= LEDC_TIMER,
 //		.duty_resolution	= LEDC_DUTY_RES,
 //		.freq_hz			= LEDC_FREQUENCY,  // Set output
-// frequency at 5 kHz 		.clk_cfg			= LEDC_AUTO_CLK
+//  frequency at 5 kHz 		.clk_cfg			= LEDC_AUTO_CLK
 //	};
 //	ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
 //
@@ -350,7 +383,7 @@ esp_err_t start_server(const char *base_path, int port) {
 //		.hpoint				= 0
 //	};
 //	ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
-//}
+// }
 
 /**
  *
@@ -401,14 +434,19 @@ static void http_server_task(void *pvParameters) {
     if (xQueueReceive(xQueueHttp, &urlBuf, portMAX_DELAY) == pdTRUE) {
       filterParams_t filterParams;
 
-      ESP_LOGI(TAG, "str_value=%s gain_1=%f, gain_2=%f, gain_3=%f",
-               urlBuf.str_value, urlBuf.gain_1, urlBuf.gain_2, urlBuf.gain_3);
-
       filterParams.dspFlow = dspfEQBassTreble;
-      filterParams.fc_1 = 300.0;
+      filterParams.fc_1 = urlBuf.fc_1;
       filterParams.gain_1 = urlBuf.gain_1;
-      filterParams.fc_3 = 4000.0;
+      filterParams.fc_2 = urlBuf.fc_2;
+      filterParams.gain_2 = urlBuf.gain_2;
+      filterParams.fc_3 = urlBuf.fc_3;
       filterParams.gain_3 = urlBuf.gain_3;
+
+      ESP_LOGI(TAG,
+               "<fc_1: %f, gain_1: %f>, <fc_2: %f, gain_2: %f>, <fc_3: %f, "
+               "gain_3: %f>",
+               filterParams.fc_1, filterParams.gain_1, filterParams.fc_2,
+               filterParams.gain_2, filterParams.fc_3, filterParams.gain_3);
 
 #if CONFIG_USE_DSP_PROCESSOR
       dsp_processor_update_filter_params(&filterParams);

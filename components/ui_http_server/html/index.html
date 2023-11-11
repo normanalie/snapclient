@@ -50,57 +50,68 @@
 		<div class="range_container">
 			<div class="range_1_container" style="float:left; margin:10px">
 			    <div class="sliders_labels">
-			        <label for="BaseGainSlider">Base</label>
+			        <label for="BaseGainSlider">Bass</label>
 			    </div>
 
 			    <div class="sliders_control">
-			        <input id="BaseGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('baseSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
+			        <input id="BassGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('bassSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
 			    </div>
 
 			    <div class="slider_value" style="width: 100px;">
-			    	<span id="baseSliderValue">0.00</span> dB
+			    	<span id="bassSliderValue">0.00</span> dB
 			    </div>
+				<input type="number" name="Bass Freq" id="BassFc" value="300" max="20000" min="20" onchange="sendUpdateSlider()">
+				<label for="BassFc">Hz</label>
 			</div>
 
 			<div class="range_2_container" style="float:left; margin:10px">
 			    <div class="sliders_labels">
-			        <label for="MidGainSlider"">Mids</label>
+			        <label for="MidsGainSlider">Mids</label>
 			    </div>
 
 			    <div class="sliders_control">
-			        <input id="MidGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('midsSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
+			        <input id="MidsGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('midsSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
 			    </div>
 
 			    <div class="slider_value" style="width: 100px;">
 			    	<span id="midsSliderValue">0.00</span> dB
 			    </div>
+				<input type="number" name="Mids Freq" id="MidsFc" value="800" max="20000" min="20" onchange="sendUpdateSlider()">
+				<label for="MidsFc">Hz</label>
 			</div>
 
 			<div class="range_3_container" style="float:left; margin:10px">
 			    <div class="sliders_labels">
-			        <label for="heightsGainSlider">Heights</label>
+			        <label for="HighsGainSlider">Highs</label>
 			    </div>
 
 			    <div class="sliders_control">
-			        <input id="heightsGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('heightsSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
+			        <input id="HighsGainSlider" type="range" orient="vertical" onchange="sendUpdateSlider()" oninput="updateSlider('highsSliderValue', this.value)" min="-6.00" max="6.00" value="0.00" step="0.01" class="slider">
 			    </div>
 
 			    <div class="slider_value" style="width: 100px;">
-			    	<span id="heightsSliderValue">0.00</span> dB
+			    	<span id="highsSliderValue">0.00</span> dB
 			    </div>
+				<input type="number" name="Highs Freq" id="HighsFc" value="4000" max="20000" min="20" onchange="sendUpdateSlider()">
+				<label for="HighsFc">Hz</label>
 			</div>
 		</div>
 
 	<script>
 		function sendUpdateSlider() {
-			var gain_1 = document.getElementById('BaseGainSlider').value;
-			var gain_2 = document.getElementById('MidGainSlider').value;
-			var gain_3 = document.getElementById('heightsGainSlider').value;
+			var gain_1 = document.getElementById('BassGainSlider').value;
+			var gain_2 = document.getElementById('MidsGainSlider').value;
+			var gain_3 = document.getElementById('HighsGainSlider').value;
+			var fc_1 = document.getElementById('BassFc').value;
+			var fc_2 = document.getElementById('MidsFc').value;
+			var fc_3 = document.getElementById('HighsFc').value;
 
-			console.log(gain_1 + ", " + gain_2 + ", " + gain_3);
-			console.log("/post?gain_1=" + gain_1 + "&gain_2= " + gain_2 + "&gain_3=" + gain_3	);
+			console.log("Bass: " + gain_1 + "dB @ " + fc_1 + "Hz");
+			console.log("Mids: " + gain_2 + "dB @ " + fc_2 + "Hz");
+			console.log("Highs: " + gain_3 + "dB @ " + fc_3 + "Hz");
+			console.log("/post?gain_1=" + gain_1 + "&gain_2=" + gain_2 + "&gain_3=" + gain_3 + "&fc_1=" + fc_1 + "&fc_2=" + fc_2 + "&fc_3=" + fc_3);
 			var httpRequest = new XMLHttpRequest();
-			httpRequest.open("POST", "/post?gain_1=" + gain_1 + "&gain_2= " + gain_2 + "&gain_3=" + gain_3, true);
+			httpRequest.open("POST", "/post?gain_1=" + gain_1 + "&gain_2=" + gain_2 + "&gain_3=" + gain_3 + "&fc_1=" + fc_1 + "&fc_2=" + fc_2 + "&fc_3=" + fc_3, true);
 			httpRequest.send();
 		}
 

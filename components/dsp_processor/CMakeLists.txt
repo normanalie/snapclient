@@ -1,4 +1,4 @@
-set(COMPONENT_REQUIRES)
+set(COMPONENT_REQUIRES nvs_flash)
 set(COMPONENT_PRIV_REQUIRES audio_board audio_sal audio_hal esp-dsp)
 
 list(APPEND COMPONENT_ADD_INCLUDEDIRS ./include)

@@ -9,6 +9,9 @@ typedef struct {
   float gain_1;
   float gain_2;
   float gain_3;
+  float fc_1;
+  float fc_2;
+  float fc_3;
 } URL_t;
 
 #endif  // __UI_HTTP_SERVER_H__

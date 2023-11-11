@@ -7,12 +7,13 @@
 #include "freertos/FreeRTOS.h"
 
 #if CONFIG_USE_DSP_PROCESSOR
+#include "dsp_processor.h"
 #include "dsps_biquad.h"
 #include "dsps_biquad_gen.h"
 #include "esp_log.h"
 #include "freertos/queue.h"
-
-#include "dsp_processor.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 #ifdef CONFIG_USE_BIQUAD_ASM
 #define BIQUAD dsps_biquad_f32_ae32
@@ -52,6 +53,97 @@ dspFlows_t dspFlowInit = dspfEQBassTreble;
 #endif
 #endif
 
+/*
+ *
+ */
+esp_err_t nvs_init(void) {
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
+      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  return err;
+}
+
+void nvs_get_or_default(filterParams_t *params) {
+  nvs_handle_t nvs_handler;
+  esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handler);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Can't open NVS partition, load default value.");
+    return;
+  } else {
+    int16_t param_value;
+
+    err = nvs_get_i16(nvs_handler, "dspFlow", &param_value);
+    if (err != ESP_OK) return;
+    if (param_value != params->dspFlow) {
+      ESP_LOGI(TAG,
+               "Saved DSP FLOW different from config. Loading default value.");
+      return;
+    }
+    params->dspFlow = param_value;
+
+    err = nvs_get_i16(nvs_handler, "fc_1", &param_value);
+    if (err != ESP_OK) return;
+    params->fc_1 = (float)(param_value);
+
+    err = nvs_get_i16(nvs_handler, "fc_2", &param_value);
+    if (err != ESP_OK) return;
+    params->fc_2 = (float)(param_value);
+
+    err = nvs_get_i16(nvs_handler, "fc_3", &param_value);
+    if (err != ESP_OK) return;
+    params->fc_3 = (float)(param_value);
+
+    err = nvs_get_i16(nvs_handler, "gain_1", &param_value);
+    if (err != ESP_OK) return;
+    params->gain_1 = (float)(param_value) / 100;
+
+    err = nvs_get_i16(nvs_handler, "gain_2", &param_value);
+    if (err != ESP_OK) return;
+    params->gain_2 = (float)(param_value) / 100;
+
+    err = nvs_get_i16(nvs_handler, "gain_3", &param_value);
+    if (err != ESP_OK) return;
+    params->gain_3 = (float)(param_value) / 100;
+  }
+  ESP_LOGD(TAG, "Loaded filter params from NVS.");
+  return;
+}
+
+void nvs_save(filterParams_t params) {
+  nvs_handle_t nvs_handler;
+  esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handler);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Unable to save DSP params. Can't open NVS partition.");
+    return;
+  } else {
+    err = nvs_set_i16(nvs_handler, "dspFlow", params.dspFlow);
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "fc_1", (int16_t)(params.fc_1));
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "fc_2", (int16_t)(params.fc_2));
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "fc_3", (int16_t)(params.fc_3));
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "gain_1", (int16_t)(params.gain_1 * 100));
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "gain_2", (int16_t)(params.gain_2 * 100));
+    if (err != ESP_OK) return;
+
+    err = nvs_set_i16(nvs_handler, "gain_3", (int16_t)(params.gain_3 * 100));
+    if (err != ESP_OK) return;
+  }
+  ESP_LOGD(TAG, "Saved filter params from NVS.");
+  return;
+}
+
 /**
  *
  */
@@ -71,13 +163,14 @@ void dsp_processor_init(void) {
     return;
   }
 
-  // TODO: load this data from NVM if available
   filterParams.dspFlow = dspFlowInit;
 
   switch (filterParams.dspFlow) {
     case dspfEQBassTreble: {
       filterParams.fc_1 = 300.0;
       filterParams.gain_1 = 0.0;
+      filterParams.fc_2 = 1000.0;
+      filterParams.gain_2 = 0.0;
       filterParams.fc_3 = 4000.0;
       filterParams.gain_3 = 0.0;
 
@@ -112,8 +205,13 @@ void dsp_processor_init(void) {
       break;
     }
 
-    default: { break; }
+    default: {
+      break;
+    }
   }
+
+  nvs_get_or_default(&filterParams);
+  dsp_processor_log_filter(filterParams);
 
   ESP_LOGI(TAG, "%s: init done", __func__);
 }
@@ -187,6 +285,10 @@ static int32_t dsp_processor_gen_filter(ptype_t *filter, uint32_t cnt) {
       case HPF:
         dsps_biquad_gen_hpf_f32(filter[n].coeffs, filter[n].freq, filter[n].q);
         break;
+      case NOTCH:
+        dsps_biquad_gen_notch_f32(filter[n].coeffs, filter[n].freq,
+                                  filter[n].gain, filter[n].q);
+        break;
 
       default:
         break;
@@ -216,7 +318,8 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
       pdTRUE) {
     init = false;
 
-    // TODO: store filterParams in NVM
+    nvs_save(filterParams);
+    dsp_processor_log_filter(filterParams);
   }
 
   dspFlow = filterParams.dspFlow;
@@ -231,7 +334,7 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
 
     switch (dspFlow) {
       case dspfEQBassTreble: {
-        cnt = 4;
+        cnt = 6;  // 3-band stereo
 
         filter =
             (ptype_t *)heap_caps_malloc(sizeof(ptype_t) * cnt, MALLOC_CAP_8BIT);
@@ -239,18 +342,24 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
           // simple EQ control of low and high frequencies (bass, treble)
           float bass_fc = filterParams.fc_1 / samplerate;
           float bass_gain = filterParams.gain_1;
+          float mids_fc = filterParams.fc_2 / samplerate;
+          float mids_gain = filterParams.gain_2;
           float treble_fc = filterParams.fc_3 / samplerate;
           float treble_gain = filterParams.gain_3;
 
           // filters for CH 0
           filter[0] = (ptype_t){LOWSHELF, bass_fc, bass_gain,       0.707,
                                 NULL,     NULL,    {0, 0, 0, 0, 0}, {0, 0}};
-          filter[1] = (ptype_t){HIGHSHELF, treble_fc, treble_gain,     0.707,
+          filter[1] = (ptype_t){NOTCH, mids_fc, mids_gain,       0.707,
+                                NULL,  NULL,    {0, 0, 0, 0, 0}, {0, 0}};
+          filter[2] = (ptype_t){HIGHSHELF, treble_fc, treble_gain,     0.707,
                                 NULL,      NULL,      {0, 0, 0, 0, 0}, {0, 0}};
           // filters for CH 1
-          filter[2] = (ptype_t){LOWSHELF, bass_fc, bass_gain,       0.707,
+          filter[3] = (ptype_t){LOWSHELF, bass_fc, bass_gain,       0.707,
                                 NULL,     NULL,    {0, 0, 0, 0, 0}, {0, 0}};
-          filter[3] = (ptype_t){HIGHSHELF, treble_fc, treble_gain,     0.707,
+          filter[4] = (ptype_t){NOTCH, mids_fc, mids_gain,       0.707,
+                                NULL,  NULL,    {0, 0, 0, 0, 0}, {0, 0}};
+          filter[5] = (ptype_t){HIGHSHELF, treble_fc, treble_gain,     0.707,
                                 NULL,      NULL,      {0, 0, 0, 0, 0}, {0, 0}};
 
           ESP_LOGI(TAG, "got new setting for dspfEQBassTreble");
@@ -332,7 +441,9 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
         break;
       }
 
-      default: { break; }
+      default: {
+        break;
+      }
     }
 
     dsp_processor_gen_filter(filter, cnt);
@@ -602,7 +713,9 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
                  "dspfFunkyHonda, not implemented yet, using stereo instead");
       } break;
 
-      default: { } break; }
+      default: {
+      } break;
+    }
 
     free(sbuffer0);
     sbuffer0 = NULL;
@@ -640,6 +753,16 @@ int dsp_processor_worker(char *audio, size_t chunk_size, uint32_t samplerate) {
 //    }
 //  }
 //}
+
+/*
+ * Format and log filter params as info.
+ */
+void dsp_processor_log_filter(filterParams_t filterParams) {
+  ESP_LOGI(TAG, "Band 1: %fdB @ %fHz", filterParams.gain_1, filterParams.fc_1);
+  ESP_LOGI(TAG, "Band 2: %fdB @ %fHz", filterParams.gain_2, filterParams.fc_2);
+  ESP_LOGI(TAG, "Band 3: %fdB @ %fHz", filterParams.gain_3, filterParams.fc_3);
+  return;
+}
 
 /**
  *
