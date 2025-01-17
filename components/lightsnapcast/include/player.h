@@ -1,11 +1,15 @@
 #ifndef __PLAYER_H__
 #define __PLAYER_H__
 
+#include "driver/i2s_std.h"
 #include "esp_types.h"
 #include "freertos/FreeRTOS.h"
-#include "i2s.h"
 #include "sdkconfig.h"
 #include "snapcast.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define I2S_PORT I2S_NUM_0
 
@@ -14,6 +18,7 @@
 #define CHNK_CTRL_CNT 2
 
 #define LATENCY_MEDIAN_FILTER_LEN 199
+#define LATENCY_MEDIAN_FILTER_FULL 19
 
 // set to 0 if you do not wish to be the median an average around actual
 // median average will be (LATENCY_MEDIAN_FILTER_LEN /
@@ -48,7 +53,7 @@ typedef struct snapcastSetting_s {
   codec_type_t codec;
   int32_t sr;
   uint8_t ch;
-  i2s_bits_per_sample_t bits;
+  i2s_data_bit_width_t bits;
 
   bool muted;
   uint32_t volume;
@@ -76,5 +81,7 @@ int32_t get_diff_to_server(int64_t *tDiff);
 int32_t server_now(int64_t *sNow, int64_t *diff2Server);
 
 int32_t pcm_chunk_queue_msg_waiting(void);
-
+#ifdef __cplusplus
+}
+#endif
 #endif  // __PLAYER_H__

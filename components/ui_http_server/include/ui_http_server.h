@@ -1,6 +1,10 @@
 #ifndef __UI_HTTP_SERVER_H__
 #define __UI_HTTP_SERVER_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void init_http_server_task(char *key);
 
 typedef struct {
@@ -13,5 +17,9 @@ typedef struct {
   float fc_2;
   float fc_3;
 } URL_t;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // __UI_HTTP_SERVER_H__

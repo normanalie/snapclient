@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "esp_event.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
@@ -18,11 +17,10 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "lwip/sockets.h"
+#include "ota_server.h"
 #include "player.h"
 
-#include "ota_server.h"
-
-extern xTaskHandle t_http_get_task;
+extern TaskHandle_t t_http_get_task;
 
 const int OTA_CONNECTED_BIT = BIT0;
 static const char *TAG = "OTA";
@@ -162,7 +160,7 @@ void ota_server_start_my(void) {
   const esp_partition_t *update_partition =
       esp_ota_get_next_update_partition(NULL);
 
-  ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
+  ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%lx",
            update_partition->subtype, update_partition->address);
 
   // https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/log.html
@@ -243,7 +241,7 @@ void ota_server_start_my(void) {
     ESP_LOGI(TAG,
              "***********************************************************");
     ESP_LOGI(TAG, "OTA Successful");
-    ESP_LOGI(TAG, "Next Boot Partition Subtype %d At Offset 0x%x",
+    ESP_LOGI(TAG, "Next Boot Partition Subtype %d At Offset 0x%lx",
              boot_partition->subtype, boot_partition->address);
     ESP_LOGI(TAG,
              "***********************************************************");

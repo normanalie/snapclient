@@ -17,12 +17,12 @@
 #include "driver/i2c.h"
 #include "esp_log.h"
 #include "ma120x0.h"
-//#include "ma120_rev1_all.h"
+// #include "ma120_rev1_all.h"
+#include "audio_hal.h"
 
 static const char *TAG = "MA120X0";
 
 #define MA_NENABLE_IO CONFIG_MA120X0_NENABLE_PIN
-#define MA_ENABLE_IO CONFIG_MA120X0_ENABLE_PIN
 #define MA_NMUTE_IO CONFIG_MA120X0_NMUTE_PIN
 #define MA_NERR_IO CONFIG_MA120X0_NERR_PIN
 #define MA_NCLIP_IO CONFIG_MA120X0_NCLIP_PIN
@@ -50,6 +50,16 @@ static const char *I2C_TAG = "i2c";
 #define NACK_VAL 0x1      /*!< I2C nack value */
 
 static i2c_config_t i2c_cfg;
+
+esp_err_t ma120x0_init(audio_hal_codec_config_t *codec_cfg);
+esp_err_t ma120x0_deinit(void);
+esp_err_t ma120x0_config_iface(audio_hal_codec_mode_t mode,
+                               audio_hal_codec_i2s_iface_t *iface);
+esp_err_t ma120x0_set_volume(int vol);
+esp_err_t ma120x0_get_volume(int *vol);
+esp_err_t ma120x0_set_mute(bool enable);
+esp_err_t ma120x0_ctrl(audio_hal_codec_mode_t mode,
+                       audio_hal_ctrl_t ctrl_state);
 
 audio_hal_func_t AUDIO_CODEC_MA120X0_DEFAULT_HANDLE = {
     .audio_codec_initialize = ma120x0_init,
@@ -273,7 +283,8 @@ esp_err_t ma_write(uint8_t i2c_addr, uint8_t prot, uint16_t address,
     i2c_master_write_byte(cmd, wbuf[i], ack);
   }
   i2c_master_stop(cmd);
-  int ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+  int ret =
+      i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
   i2c_cmd_link_delete(cmd);
   if (ret == ESP_FAIL) {
     return ret;
@@ -296,7 +307,7 @@ esp_err_t ma_write_byte(uint8_t i2c_addr, uint8_t prot, uint16_t address,
   }
   i2c_master_write_byte(cmd, value, ACK_VAL);
   i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
   i2c_cmd_link_delete(cmd);
   if (ret == ESP_FAIL) {
     printf("ESP_I2C_WRITE ERROR : %d\n", ret);
@@ -328,7 +339,7 @@ esp_err_t ma_read(uint8_t i2c_addr, uint8_t prot, uint16_t address,
   // { i2c_master_read_byte(cmd, rbuf++, ACK_VAL); }
   i2c_master_read_byte(cmd, rbuf + n - 1, NACK_VAL);
   i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 100 / portTICK_RATE_MS);
+  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 100 / portTICK_PERIOD_MS);
   i2c_cmd_link_delete(cmd);
   if (ret == ESP_FAIL) {
     printf("i2c Error read - readback\n");
@@ -355,7 +366,7 @@ uint8_t ma_read_byte(uint8_t i2c_addr, uint8_t prot, uint16_t address) {
   i2c_master_read_byte(cmd, &value, NACK_VAL);
 
   i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+  ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
   i2c_cmd_link_delete(cmd);
   if (ret == ESP_FAIL) {
     printf("i2c Error read - readback\n");
